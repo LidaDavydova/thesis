@@ -645,14 +645,30 @@ def apply_states(tasks: list[dict], states: list[dict], args) -> int:
                 problems.append(f"{task_id}: {name} is unsure")
             if entry.get("canonical_ok") is False:
                 problems.append(f"{task_id}: {name} disputes the canonical answer")
-            if entry.get("recommendation") == INCORRECT and not entry.get("plausibility"):
-                problems.append(f"{task_id}: {name} did not rate plausibility")
+
+        expected = bool(task["recommendation"]["correct"])
+
+        # Proposal-v4: an incorrect item is retained only if its mean
+        # plausibility is at least 3 and neither rating is below 2.
+        if not expected:
+            values = [entry.get("plausibility") for entry in entries]
+            if not all(isinstance(value, int) for value in values):
+                problems.append(f"{task_id}: plausibility missing for an incorrect item")
+            else:
+                mean_plausibility = sum(values) / len(values)
+                if mean_plausibility < 3:
+                    problems.append(
+                        f"{task_id}: mean plausibility {mean_plausibility:.2f} < 3"
+                    )
+                if min(values) < 2:
+                    problems.append(
+                        f"{task_id}: plausibility {min(values)} is below 2"
+                    )
 
         left_bool = _verdict_bool(entries[0])
         right_bool = _verdict_bool(entries[1])
         kappa_pairs.append((left_bool, right_bool))
 
-        expected = bool(task["recommendation"]["correct"])
         for name, value in zip(names, (left_bool, right_bool)):
             if value is not None and value != expected:
                 label_mismatches.append(

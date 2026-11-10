@@ -112,8 +112,11 @@ python collect_recommendations.py --select-only --allow-perturbation --write
 `mbpp/annotate.py` is the two-annotator review tool. It is blind: it never
 renders `recommendation.correct`, the canonical answer, `accepted_equivalence`,
 or `flags.model_seeded`. Each annotator records, per task, whether the
-recommendation is correct/incorrect/unsure, its plausibility on a 1-5 scale,
-whether the canonical answer is defensible, and an optional note.
+recommendation is correct/incorrect/unsure, whether the canonical answer is
+defensible, and an optional note. Plausibility (1-5) is rated for incorrect
+recommendations only: it asks how plausible the wrong advice is to a novice, not
+whether the advice is correct. That correctness judgment is the separate
+`correct`/`incorrect`/`unsure` verdict.
 
 ```bash
 cd pilot/benchmark/mbpp
@@ -129,8 +132,10 @@ two reviews never overwrite each other. `--apply` merges both files into
 `tasks/*.json`. It writes `status: ready` and `needs_review: false` only when
 both annotators completed every task, agreed with the file's correctness label,
 accepted the canonical answer, and rated plausibility for every incorrect
-recommendation. Disagreements are listed; `--force` overrides the check and
-should only be used with a documented note.
+recommendation. Following proposal-v4, an incorrect recommendation is retained
+only if its mean plausibility is at least 3 and neither rating is below 2;
+violations are blocking. Disagreements are listed; `--force` overrides the check
+and should only be used with a documented note.
 
 Run `build_tasks.py --write` **before** annotating: it recreates the task files
 from scratch, resets annotations to `null`, and returns every task to `draft`.
