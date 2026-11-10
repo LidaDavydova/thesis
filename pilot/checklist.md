@@ -2,7 +2,7 @@
 
 ## A. Before the technical dry run
 
-- [ ] 18-task benchmark drafted.
+- [+] 18-task benchmark drafted.
 - [ ] `python -m pilot.app.seed --check-only` passes.
 - [ ] `node --check pilot/app/static/experiment.js` passes.
 - [ ] FastAPI smoke test passes.
@@ -22,16 +22,7 @@
 
 ## C. Before the formal pilot
 
-### C.1 Ethics and administration
-
-- [ ] Written ethics approval confirmed; reference and date recorded.
-- [ ] Consent form and information sheet approved.
-- [ ] Recruitment and compensation decided.
-- [ ] Participant scheduling and sequence assignment prepared.
-- [ ] Data storage location and access confirmed.
-- [ ] Retention and deletion plan confirmed.
-
-### C.2 Benchmark
+### C.11 Benchmark
 
 - [ ] 18 tasks exist; `status: ready` for all.
 - [ ] Six per type; three correct and three incorrect recommendations per type.
@@ -44,7 +35,7 @@
 - [ ] Second reviewer sign-off recorded.
 - [ ] `python -m pilot.app.seed --check-only` passes.
 
-### C.3 Software
+### C.2 Software
 
 - [ ] Fresh virtual environment; dependencies installed.
 - [ ] `python -m pilot.app.seed --init-db` run on the pilot database.
@@ -63,7 +54,7 @@
 - [ ] `PILOT_TAU`, `PILOT_EXAMINATION_CUTOFF_MS`, focus thresholds, and admin token set.
 - [ ] Code and configuration frozen; version recorded.
 
-### C.4 Materials
+### C.3 Materials
 
 - [ ] Information sheet and consent form printed or available electronically.
 - [ ] Session script available.
