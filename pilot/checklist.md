@@ -2,7 +2,7 @@
 
 ## A. Before the technical dry run
 
-- [ ] 18-task benchmark drafted, or six sample tasks explicitly marked as dry-run only.
+- [ ] 18-task benchmark drafted.
 - [ ] `python -m pilot.app.seed --check-only` passes.
 - [ ] `node --check pilot/app/static/experiment.js` passes.
 - [ ] FastAPI smoke test passes.

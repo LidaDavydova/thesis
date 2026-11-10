@@ -7,8 +7,7 @@ recommendations, and one correct and one incorrect recommendation per type.
 
 `T01`–`T18` are adapted from 18 accepted MBPP tasks. They are in `draft` status
 until the two-annotator check and the Qwen recommendation freeze are finished.
-The previous hand-authored bank is archived in `tasks_legacy/`; the six dry-run
-samples are archived in `samples/dry-run/`.
+The previous hand-authored bank and the six dry-run samples have been removed.
 
 ## Composition
 

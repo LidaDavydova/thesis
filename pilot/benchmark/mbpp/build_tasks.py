@@ -21,13 +21,11 @@ import argparse
 import ast
 import difflib
 import json
-import shutil
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 BENCHMARK = HERE.parent
 TASKS = BENCHMARK / "tasks"
-BACKUP = BENCHMARK / "tasks_legacy"
 POOL = HERE / "mbpp.jsonl"
 STATE = HERE / "review_state.json"
 
@@ -571,9 +569,6 @@ def main() -> int:
         print(f"  {meta['id']}: tests={len(meta['tests'])} passing={passed or 'n/a'}")
 
     if args.write:
-        if TASKS.exists() and any(TASKS.glob("T*.json")) and not BACKUP.exists():
-            shutil.copytree(TASKS, BACKUP)
-            print(f"backed up existing tasks to {BACKUP}")
         TASKS.mkdir(parents=True, exist_ok=True)
         for task in built:
             path = TASKS / f"{task['id']}.json"

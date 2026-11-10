@@ -7,9 +7,8 @@ set, with a documented one-line mutation where the task needs a bug or a
 non-compliant implementation. All tasks are in `draft` status until the
 two-annotator check and the Qwen recommendation freeze are completed.
 
-The previous hand-authored bank is preserved in `tasks_legacy/`. The six
-dry-run samples are preserved in `samples/dry-run/`; neither is part of the
-current bank.
+The previous hand-authored bank and the six dry-run samples have been removed;
+only the current `tasks/` bank is kept.
 
 ## Files
 
@@ -18,8 +17,6 @@ schema.json                  JSON schema for one task
 design.json                  base task-to-condition assignment and rotation settings
 tasks/T01.json ... T18       one file per task
 benchmark-18-plan.md         composition, balance, and condition assignment
-samples/dry-run/             archived six-task dry-run subset
-tasks_legacy/                previous hand-authored 18-task bank
 mbpp/build_tasks.py          deterministic MBPP-to-benchmark builder
 mbpp/collect_recommendations.py  Qwen collection, scoring, selection, design update
 mbpp/annotate.py             blind two-annotator review and annotation merge

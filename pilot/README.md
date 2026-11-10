@@ -61,7 +61,7 @@ pilot/
   benchmark/
     schema.json              task JSON Schema
     design.json              counterbalancing design
-    tasks/T01..T18.json      task files (six samples currently)
+    tasks/T01..T18.json      task files (18 tasks, draft status)
     benchmark-18-plan.md     composition and balance plan
     README.md                task-authoring notes
   app/
@@ -89,9 +89,9 @@ pilot/
 
 - The FastAPI prototype, participant interface, database, and admin export are
   implemented and passed an end-to-end smoke test with six sample tasks.
-- Six sample tasks exist (`T01`–`T06`). They are placeholders flagged
-  `needs_review`; the full 18-task benchmark must be authored, reviewed, and
-  piloted before the formal pilot.
+- The full 18-task bank exists (`T01`–`T18`), adapted from MBPP. All tasks are
+  still `draft`; the two-annotator review and recommendation freeze must be
+  completed before the formal pilot.
 - The analysis pipeline runs end to end on synthetic data. It has not yet been
   run on real pilot data.
 - Tau, the examination cutoff, and the focus-loss thresholds are provisional
@@ -104,8 +104,8 @@ pilot/
   any pilot or main data collection. The technical dry run is designed to avoid
   research data, but that does not replace an ethics decision for the formal
   pilot.
-- **Benchmark.** Replace the six sample tasks with the full 18-task set, have a
-  second person review every canonical answer, and run the task-quality checks.
+- **Benchmark.** Complete the two-annotator review of the 18-task set, resolve
+  every `draft` task, and run the task-quality checks.
 - **Compensation and recruitment.** Decide how participants are recruited and
   compensated, and record it in the protocol.
 - **Data protection.** Decide where the SQLite database and exports live, who

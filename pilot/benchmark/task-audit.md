@@ -1,8 +1,8 @@
 # Benchmark audit: 18-task bank
 
 > **Historical note:** this audit applies to the previous hand-authored bank,
-> now preserved in `tasks_legacy/`. The current `tasks/` bank is adapted from
-> the accepted MBPP review set; see `README.md` and `benchmark-18-plan.md`.
+> which has since been removed. The current `tasks/` bank is adapted from the
+> accepted MBPP review set; see `README.md` and `benchmark-18-plan.md`.
 
 **Date:** 7 November 2026  
 **Scope:** `pilot/benchmark/tasks/T01.json`–`T18.json`, `design.json`,
