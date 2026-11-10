@@ -44,6 +44,7 @@ Keys
     g            go to task id
     d            clear the current rating
     q            save and quit
+    Ctrl+C       save and quit (resume with the same command)
 """
 
 from __future__ import annotations
@@ -477,13 +478,14 @@ def render_intro(width: int) -> list[str]:
     out += _wrap(
         "[h] shows this page again; [j]/[k] move between tasks; [space] turns "
         "the page when the task text is longer than the screen; [g] jumps to a "
-        "task id; [d] clears a rating; [q] saves and quits.",
+        "task id; [d] clears a rating; [q] or Ctrl+C saves and quits.",
         width - 2, "  ", "  ",
     )
     out.append("")
     out += _wrap(
         "Tasks are shown in a random order stored in your state file, so you "
-        "can stop and resume without losing your place.",
+        "can stop and resume without losing your place: rerun the same command "
+        "and the review continues where you left off.",
         width - 2, "  ", "  ",
     )
     return out
@@ -537,7 +539,8 @@ class RawKeys:
         return codes.get(buf, "esc")
 
 
-def _prompt_line(keys: RawKeys, prompt: str) -> str:
+def _prompt_line(keys: RawKeys, prompt: str) -> str | None:
+    """Read a line of text; ``None`` means the prompt was cancelled."""
     sys.stdout.write("\033[?25h")
     sys.stdout.flush()
     keys.pause()
@@ -545,10 +548,22 @@ def _prompt_line(keys: RawKeys, prompt: str) -> str:
         return input(prompt)
     except EOFError:
         return ""
+    except KeyboardInterrupt:
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+        return None
     finally:
         keys.resume()
         sys.stdout.write("\033[?25l")
         sys.stdout.flush()
+
+
+def _read_key(keys: RawKeys) -> str:
+    """Read one key; Ctrl+C becomes the ``interrupt`` pseudo-key."""
+    try:
+        return keys.get()
+    except KeyboardInterrupt:
+        return "interrupt"
 
 
 # --------------------------------------------------------------------------- #
@@ -602,7 +617,7 @@ def interactive(tasks: list[dict], state: dict, state_path: Path, args) -> None:
                 sys.stdout.write("\n")
                 sys.stdout.flush()
 
-                key = keys.get()
+                key = _read_key(keys)
                 if key in (" ", "pagedown", "j", "down", "right"):
                     if intro_page + 1 < pages:
                         intro_page += 1
@@ -615,7 +630,7 @@ def interactive(tasks: list[dict], state: dict, state_path: Path, args) -> None:
                 if key in ("pageup", "k", "up", "left", "b"):
                     intro_page = max(0, intro_page - 1)
                     continue
-                if key in ("q", "\x03"):
+                if key in ("q", "\x03", "interrupt"):
                     state["cursor"] = task["id"]
                     save_state(state_path, state)
                     break
@@ -637,12 +652,12 @@ def interactive(tasks: list[dict], state: dict, state_path: Path, args) -> None:
             sys.stdout.flush()
             message = ""
 
-            key = keys.get()
+            key = _read_key(keys)
             sys.stdout.write("\033[2J\033[H")
             sys.stdout.flush()
 
             changed = False
-            if key in ("q", "\x03"):
+            if key in ("q", "\x03", "interrupt"):
                 state["cursor"] = task["id"]
                 save_state(state_path, state)
                 break
@@ -662,12 +677,16 @@ def interactive(tasks: list[dict], state: dict, state_path: Path, args) -> None:
                 intro, intro_page = True, 0
                 continue
             elif key == "g":
-                value = _prompt_line(keys, "task id> ").strip().upper()
-                ids = [i for i, item in enumerate(order) if item["id"] == value]
-                if ids:
-                    pos, page = ids[0], 0
+                value = _prompt_line(keys, "task id> ")
+                if value is None:
+                    message = "goto cancelled"
                 else:
-                    message = f"unknown task {value!r}"
+                    value = value.strip().upper()
+                    ids = [i for i, item in enumerate(order) if item["id"] == value]
+                    if ids:
+                        pos, page = ids[0], 0
+                    else:
+                        message = f"unknown task {value!r}"
             elif key in ("y", "n", "u"):
                 entry["recommendation"] = {
                     "y": CORRECT, "n": INCORRECT, "u": UNSURE,
@@ -689,11 +708,15 @@ def interactive(tasks: list[dict], state: dict, state_path: Path, args) -> None:
                 changed = True
                 message = "canonical ok" if key == "v" else "canonical has a problem"
             elif key == "e":
-                note = _prompt_line(keys, "note> ").strip()
-                entry["note"] = note
-                touch(entry)
-                changed = True
-                message = "note saved" if note else "note cleared"
+                note = _prompt_line(keys, "note> ")
+                if note is None:
+                    message = "note edit cancelled"
+                else:
+                    note = note.strip()
+                    entry["note"] = note
+                    touch(entry)
+                    changed = True
+                    message = "note saved" if note else "note cleared"
             elif key == "d":
                 state["ratings"].pop(task["id"], None)
                 changed = True
@@ -709,6 +732,7 @@ def interactive(tasks: list[dict], state: dict, state_path: Path, args) -> None:
 
     print(f"saved {state_path}")
     print(print_stats(state, tasks))
+    print("resume with the same command; the order and position are kept")
 
 
 # --------------------------------------------------------------------------- #
@@ -965,7 +989,11 @@ def main(argv: list[str] | None = None) -> int:
         if not sys.stdin.isatty():
             print("error: --annotator is required in non-interactive mode", file=sys.stderr)
             return 2
-        annotator = input("annotator name or initials: ").strip()
+        try:
+            annotator = input("annotator name or initials: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\ninterrupted; nothing was written", file=sys.stderr)
+            return 130
         if not annotator:
             print("error: annotator name is required", file=sys.stderr)
             return 2
@@ -977,4 +1005,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except KeyboardInterrupt:
+        print("\ninterrupted; annotations are saved per keypress")
+        raise SystemExit(130)

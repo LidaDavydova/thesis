@@ -123,7 +123,10 @@ recommendation verdict means, what plausibility measures and how the 1-5 scale
 is anchored, and when to accept or dispute the canonical answer); press `h` at
 any time to reopen it. Tasks are presented in a random order drawn once per
 annotator and saved in the state file, so resuming keeps both the order and the
-position (`--sorted` falls back to id order, `--seed N` reshuffles).
+position (`--sorted` falls back to id order, `--seed N` reshuffles). Every key
+that changes a rating saves immediately; `q` or Ctrl+C saves and quits, and
+rerunning the same command continues from the same task. Ctrl+C at a `g` or
+`e` prompt only cancels that prompt.
 
 ```bash
 cd pilot/benchmark/mbpp
