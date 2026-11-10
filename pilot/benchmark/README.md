@@ -118,10 +118,18 @@ recommendations only: it asks how plausible the wrong advice is to a novice, not
 whether the advice is correct. That correctness judgment is the separate
 `correct`/`incorrect`/`unsure` verdict.
 
+The tool opens with a page explaining the three judgments (what the
+recommendation verdict means, what plausibility measures and how the 1-5 scale
+is anchored, and when to accept or dispute the canonical answer); press `h` at
+any time to reopen it. Tasks are presented in a random order drawn once per
+annotator and saved in the state file, so resuming keeps both the order and the
+position (`--sorted` falls back to id order, `--seed N` reshuffles).
+
 ```bash
 cd pilot/benchmark/mbpp
 python annotate.py --annotator AA            # start or resume
 python annotate.py --annotator BB --pending  # only unfinished tasks
+python annotate.py --annotator AA --sorted   # alphabetical order instead
 python annotate.py --stats                   # progress for all state files
 python annotate.py --apply --dry-run         # preview merge + Cohen's kappa
 python annotate.py --apply --write           # merge and promote to ready

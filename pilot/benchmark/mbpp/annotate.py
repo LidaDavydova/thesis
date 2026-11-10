@@ -10,6 +10,11 @@ Each annotator works through the task bank independently and records, per task:
 - whether the canonical answer is defensible (``canonical_ok``);
 - an optional free-text note.
 
+Tasks are presented in a random order.  The order is drawn once and stored in
+the annotator's state file, so resuming a session keeps both the order and the
+position (``--sorted`` restores alphabetical order).  An introductory page
+explaining the judgments is shown first and can be reopened with ``h``.
+
 The session is blind: the task's own correctness label, canonical answer,
 accepted-equivalence set, and ``model_seeded`` flag are never rendered.
 
@@ -22,6 +27,7 @@ Examples
 --------
     python annotate.py --annotator AA          # start / resume AA's review
     python annotate.py --annotator BB --pending
+    python annotate.py --annotator AA --sorted # id order instead of random
     python annotate.py --stats                 # progress for all state files
     python annotate.py --apply --dry-run       # preview the merge
     python annotate.py --apply --write         # write annotations + ready status
@@ -32,6 +38,7 @@ Keys
     1-5          plausibility of the recommendation
     v / x        canonical answer is valid / has a problem
     e            edit note
+    h            show the introductory page again
     j / k        next / previous task
     space        next page
     g            go to task id
@@ -45,6 +52,7 @@ import argparse
 import datetime as _dt
 import json
 import os
+import random
 import re
 import select
 import shutil
@@ -116,8 +124,39 @@ def new_state(annotator: str) -> dict:
         "created": _dt.datetime.now().isoformat(timespec="seconds"),
         "updated": None,
         "cursor": None,
+        "order_seed": None,
+        "order": None,
         "ratings": {},
     }
+
+
+def build_order(tasks: list[dict], state: dict, seed: int | None = None,
+                alphabetical: bool = False) -> list[dict]:
+    """Return the task list in this annotator's presentation order.
+
+    The bank is shuffled once per annotator and the resulting order is stored in
+    the state file, so a resumed session neither reshuffles nor loses the
+    position.  An explicit ``seed`` (from ``--seed``) forces a new shuffle.
+    """
+    if alphabetical:
+        return sorted(tasks, key=lambda task: task["id"])
+
+    ids = [task["id"] for task in tasks]
+    stored = state.get("order")
+    if seed is None and isinstance(stored, list) and sorted(stored) == sorted(ids):
+        by_id = {task["id"]: task for task in tasks}
+        return [by_id[task_id] for task_id in stored]
+
+    if seed is None:
+        seed = state.get("order_seed")
+    if not isinstance(seed, int):
+        seed = random.SystemRandom().randrange(2 ** 32)
+
+    order = list(tasks)
+    random.Random(seed).shuffle(order)
+    state["order_seed"] = seed
+    state["order"] = [task["id"] for task in order]
+    return order
 
 
 def load_state(path: Path, annotator: str | None = None) -> dict:
@@ -349,11 +388,12 @@ def render_task(task: dict, entry: dict, width: int,
     return out
 
 
-def footer(width: int, page: int, pages: int, message: str = "") -> str:
-    keys = (
+def footer(width: int, page: int, pages: int, message: str = "",
+           keys: str | None = None) -> str:
+    keys = keys or (
         "[y]correct [n]incorrect [u]unsure [1-5]plausibility "
         "[v]canonical-ok [x]canonical-problem [e]note [d]reset "
-        "[j/k]move [space]page [g]oto [q]uit"
+        "[h]elp [j/k]move [space]page [g]oto [q]uit"
     )
     pageinfo = f"page {page}/{pages}"
     prefix = (message + "  " + C.dim("|") + "  ") if message else ""
@@ -361,6 +401,92 @@ def footer(width: int, page: int, pages: int, message: str = "") -> str:
     if room < 1:
         pageinfo, room = "", width - len(keys) - len(prefix) - 2
     return C.dim(prefix) + C.dim(keys) + " " * max(1, room) + C.dim(pageinfo)
+
+
+def render_intro(width: int) -> list[str]:
+    """Front page: what each judgment means and when to pick it."""
+    out = [
+        C.bold("  blind two-annotator review"),
+        "",
+    ]
+    out += _wrap(
+        "Each page shows one task and one LLM recommendation. Judge the "
+        "recommendation, not the model: the task's own label, the canonical "
+        "answer and the accepted-equivalence set stay hidden. You record three "
+        "judgments per task.",
+        width - 2, "  ", "  ",
+    )
+    out.append("")
+
+    out += _section("1. recommendation: is the advice correct?", width)
+    for key, label, body in (
+        ("y", "correct",
+         "The recommendation is exactly what you would submit: the same "
+         "verdict, and for identify_bug the same faulty line, for select_impl "
+         "the same candidate. Small wording differences do not matter, the "
+         "structured answer does."),
+        ("n", "incorrect",
+         "The recommendation is wrong under the specification - the wrong "
+         "verdict, a different line, or a different candidate. Use this "
+         "whenever you can name why it is wrong."),
+        ("u", "unsure",
+         "Genuinely undecidable from the page: the spec is ambiguous, the "
+         "evidence does not settle it, or you would have to run the code. "
+         "Use it sparingly - an unsure rating blocks the merge."),
+    ):
+        out += _wrap(f"[{key}] {label} - {body}", width - 2, "  ", "  ")
+    out.append("")
+
+    out += _section("2. plausibility: how tempting is the advice?", width)
+    out += _wrap(
+        "Required whenever you answer incorrect or unsure. This is not a second "
+        "correctness vote: it asks how believable the wrong advice looks to a "
+        "novice who cannot run the code. A recommendation that is wrong but "
+        "reads convincingly is the interesting case for the study.",
+        width - 2, "  ", "  ",
+    )
+    for score, body in (
+        (1, "absurd or obviously broken; no novice would follow it"),
+        (2, "clearly wrong, but needs a moment of thought to reject"),
+        (3, "superficially reasonable; survives a quick reading"),
+        (4, "convincing; only a careful check exposes the flaw"),
+        (5, "nearly indistinguishable from a correct answer"),
+    ):
+        out += _wrap(f"{score}  {body}", width - 2, "  ", "    ")
+    out += _wrap(
+        "The merge keeps an incorrect item only if the mean of the two ratings "
+        "is at least 3 and neither rating is below 2.",
+        width - 2, "  ", "  ",
+    )
+    out.append("")
+
+    out += _section("3. canonical: is the reference answer defensible?", width)
+    for key, label, body in (
+        ("v", "ok",
+         "The reference answer is correct, or at least the best available "
+         "answer to this spec; a second expert could reasonably arrive at it."),
+        ("x", "problem",
+         "The reference answer is wrong, ambiguous, or too narrow - another "
+         "defensible answer exists that the reference would reject. Marking a "
+         "problem blocks the merge so the task can be fixed."),
+    ):
+        out += _wrap(f"[{key}] {label} - {body}", width - 2, "  ", "  ")
+    out.append("")
+
+    out += _section("keys", width)
+    out += _wrap(
+        "[h] shows this page again; [j]/[k] move between tasks; [space] turns "
+        "the page when the task text is longer than the screen; [g] jumps to a "
+        "task id; [d] clears a rating; [q] saves and quits.",
+        width - 2, "  ", "  ",
+    )
+    out.append("")
+    out += _wrap(
+        "Tasks are shown in a random order stored in your state file, so you "
+        "can stop and resume without losing your place.",
+        width - 2, "  ", "  ",
+    )
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -429,24 +555,29 @@ def _prompt_line(keys: RawKeys, prompt: str) -> str:
 # interactive review
 # --------------------------------------------------------------------------- #
 def interactive(tasks: list[dict], state: dict, state_path: Path, args) -> None:
-    order = [task for task in tasks if not args.pending or not is_complete(rating_of(state, task["id"]))]
+    ordered = build_order(tasks, state, seed=args.seed,
+                          alphabetical=args.sorted)
+    order = [task for task in ordered
+             if not args.pending or not is_complete(rating_of(state, task["id"]))]
+    order_ids = [task["id"] for task in order]
     if not order:
         print("nothing to annotate: all tasks are complete")
         print(print_stats(state, tasks))
         return
 
-    pos = 0
     if args.start:
-        starts = [i for i, task in enumerate(order) if task["id"] >= args.start]
-        pos = starts[0] if starts else 0
-    elif state.get("cursor"):
-        starts = [i for i, task in enumerate(order) if task["id"] >= state["cursor"]]
-        pos = starts[0] if starts else 0
+        wanted = args.start.strip().upper()
+        pos = order_ids.index(wanted) if wanted in order_ids else 0
+    elif state.get("cursor") in order_ids:
+        pos = order_ids.index(state["cursor"])
     else:
-        pos = next((i for i, task in enumerate(order) if not is_complete(rating_of(state, task["id"]))), 0)
+        pos = next((i for i, task in enumerate(order)
+                    if not is_complete(rating_of(state, task["id"]))), 0)
 
     message = ""
     page = 0
+    intro = True
+    intro_page = 0
 
     with RawKeys() as keys:
         while order:
@@ -454,8 +585,47 @@ def interactive(tasks: list[dict], state: dict, state_path: Path, args) -> None:
             entry = rating_of(state, task["id"])
             width = _width()
             rows = shutil.get_terminal_size((width, 24)).lines
-            content = render_task(task, entry, width, pos, len(order))
             body_rows = max(5, rows - 4)
+
+            if intro:
+                content = render_intro(width)
+                pages = max(1, (len(content) + body_rows - 1) // body_rows)
+                intro_page = min(intro_page, pages - 1)
+                sys.stdout.write("\033[2J\033[H")
+                sys.stdout.write("\n".join(
+                    content[intro_page * body_rows:(intro_page + 1) * body_rows]))
+                sys.stdout.write("\n\n")
+                sys.stdout.write(footer(
+                    width, intro_page + 1, pages,
+                    keys="[space]next page [enter]start [q]uit",
+                ))
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+
+                key = keys.get()
+                if key in (" ", "pagedown", "j", "down", "right"):
+                    if intro_page + 1 < pages:
+                        intro_page += 1
+                        continue
+                    intro = False
+                    page = 0
+                    sys.stdout.write("\033[2J\033[H")
+                    sys.stdout.flush()
+                    continue
+                if key in ("pageup", "k", "up", "left", "b"):
+                    intro_page = max(0, intro_page - 1)
+                    continue
+                if key in ("q", "\x03"):
+                    state["cursor"] = task["id"]
+                    save_state(state_path, state)
+                    break
+                intro = False
+                page = 0
+                sys.stdout.write("\033[2J\033[H")
+                sys.stdout.flush()
+                continue
+
+            content = render_task(task, entry, width, pos, len(order))
             pages = max(1, (len(content) + body_rows - 1) // body_rows)
             page = min(page, pages - 1)
 
@@ -488,6 +658,9 @@ def interactive(tasks: list[dict], state: dict, state_path: Path, args) -> None:
                 page = min(page + 1, pages - 1)
             elif key == "pageup":
                 page = max(page - 1, 0)
+            elif key in ("h", "?"):
+                intro, intro_page = True, 0
+                continue
             elif key == "g":
                 value = _prompt_line(keys, "task id> ").strip().upper()
                 ids = [i for i, item in enumerate(order) if item["id"] == value]
@@ -742,6 +915,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--tasks-dir", type=Path, default=TASKS_DIR)
     parser.add_argument("--pending", action="store_true", help="only show incomplete tasks")
     parser.add_argument("--start", help="start at this task id")
+    parser.add_argument("--seed", type=int, help="reshuffle the task order with this seed")
+    parser.add_argument("--sorted", action="store_true", help="present tasks in id order")
     parser.add_argument("--list", action="store_true", help="list tasks and exit")
     parser.add_argument("--stats", action="store_true", help="show progress for state files")
     parser.add_argument("--no-color", action="store_true")
