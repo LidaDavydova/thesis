@@ -13,7 +13,8 @@ Each annotator works through the task bank independently and records, per task:
 Tasks are presented in a random order.  The order is drawn once and stored in
 the annotator's state file, so resuming a session keeps both the order and the
 position (``--sorted`` restores alphabetical order).  An introductory page
-explaining the judgments is shown first and can be reopened with ``h``.
+explaining the judgments is shown on the first run and can be reopened with
+``h``; the three recorded values stay visible above the key hints.
 
 The session is blind: the task's own correctness label, canonical answer,
 accepted-equivalence set, and ``model_seeded`` flag are never rendered.
@@ -127,6 +128,7 @@ def new_state(annotator: str) -> dict:
         "cursor": None,
         "order_seed": None,
         "order": None,
+        "intro_seen": False,
         "ratings": {},
     }
 
@@ -360,10 +362,23 @@ def render_task(task: dict, entry: dict, width: int,
     out.append(C.dim("  structured: "
                      + json.dumps(recommendation.get("structured"),
                                   ensure_ascii=False, sort_keys=True)))
-    out.append("")
+    note = (entry.get("note") or "").strip()
+    if note:
+        out.append("")
+        out.append(C.bold("  note:"))
+        out += _wrap(note, width - 4, "    ", "    ")
+    return out
 
-    out += _section("annotation", width)
+
+def status_line(entry: dict, width: int) -> str:
+    """One line above the footer: the three judgments, always visible."""
     verdict = entry.get("recommendation")
+    verdict_plain = {
+        None: "unrated",
+        CORRECT: "correct",
+        INCORRECT: "incorrect",
+        UNSURE: "unsure",
+    }[verdict]
     verdict_text = {
         None: C.dim("unrated"),
         CORRECT: C.green("correct"),
@@ -371,22 +386,52 @@ def render_task(task: dict, entry: dict, width: int,
         UNSURE: C.yellow("unsure"),
     }[verdict]
     plausibility = entry.get("plausibility")
-    plausibility_text = str(plausibility) if plausibility else C.dim("-")
+    plausibility_plain = str(plausibility) if plausibility else "-"
+    plausibility_text = (str(plausibility) if plausibility else C.dim("-"))
     canonical = entry.get("canonical_ok")
+    canonical_plain = {None: "unrated", True: "ok", False: "problem"}[canonical]
     canonical_text = {
         None: C.dim("unrated"),
         True: C.green("ok"),
         False: C.red("problem"),
     }[canonical]
-    out.append(
-        f"  recommendation: {verdict_text}    "
-        f"plausibility: {plausibility_text}    "
-        f"canonical: {canonical_text}"
-    )
-    note = (entry.get("note") or "").strip()
-    if note:
-        out += _wrap(note, width - 4, "  note: ", "        ")
-    return out
+
+    sep = "  |  "
+    full = sep.join((
+        f"  recommendation {verdict_text}",
+        f"plausibility {plausibility_text}",
+        f"canonical {canonical_text}",
+    ))
+    full_len = 2 + len(f"recommendation {verdict_plain}") \
+        + len(f"plausibility {plausibility_plain}") \
+        + len(f"canonical {canonical_plain}") + 2 * len(sep)
+
+    note = (entry.get("note") or "").strip().replace("\n", " ")
+    if full_len <= width:
+        room = width - full_len - len(sep) - len("note ")
+        if note and room > 10:
+            if len(note) > room:
+                note = note[: room - 1].rstrip() + "…"
+            full += f"{sep}{C.dim('note')} {note}"
+        return full
+
+    sep = " | "
+    short = sep.join((
+        f"rec {verdict_text}",
+        f"plaus {plausibility_text}",
+        f"canon {canonical_text}",
+    ))
+    short_len = len(f"rec {verdict_plain}") + len(f"plaus {plausibility_plain}") \
+        + len(f"canon {canonical_plain}") + 2 * len(sep)
+    if short_len <= width:
+        room = width - short_len - len(sep) - len("note ")
+        if note and room > 8:
+            if len(note) > room:
+                note = note[: room - 1].rstrip() + "…"
+            short += f"{sep}{C.dim('note')} {note}"
+        return short
+    plain = f"rec {verdict_plain} | plaus {plausibility_plain} | canon {canonical_plain}"
+    return plain[:width]
 
 
 def footer(width: int, page: int, pages: int, message: str = "",
@@ -478,14 +523,16 @@ def render_intro(width: int) -> list[str]:
     out += _wrap(
         "[h] shows this page again; [j]/[k] move between tasks; [space] turns "
         "the page when the task text is longer than the screen; [g] jumps to a "
-        "task id; [d] clears a rating; [q] or Ctrl+C saves and quits.",
+        "task id; [d] clears a rating; [q] or Ctrl+C saves and quits. Your "
+        "three judgments stay visible in the line above the key hints.",
         width - 2, "  ", "  ",
     )
     out.append("")
     out += _wrap(
-        "Tasks are shown in a random order stored in your state file, so you "
-        "can stop and resume without losing your place: rerun the same command "
-        "and the review continues where you left off.",
+        "Press enter (or space on this last page) to start. Tasks are shown in "
+        "a random order stored in your state file, so you can stop and resume "
+        "without losing your place: rerun the same command and the review "
+        "continues where you left off.",
         width - 2, "  ", "  ",
     )
     return out
@@ -591,7 +638,7 @@ def interactive(tasks: list[dict], state: dict, state_path: Path, args) -> None:
 
     message = ""
     page = 0
-    intro = True
+    intro = not state.get("intro_seen")
     intro_page = 0
 
     with RawKeys() as keys:
@@ -600,7 +647,7 @@ def interactive(tasks: list[dict], state: dict, state_path: Path, args) -> None:
             entry = rating_of(state, task["id"])
             width = _width()
             rows = shutil.get_terminal_size((width, 24)).lines
-            body_rows = max(5, rows - 4)
+            body_rows = max(5, rows - 5)
 
             if intro:
                 content = render_intro(width)
@@ -618,14 +665,8 @@ def interactive(tasks: list[dict], state: dict, state_path: Path, args) -> None:
                 sys.stdout.flush()
 
                 key = _read_key(keys)
-                if key in (" ", "pagedown", "j", "down", "right"):
-                    if intro_page + 1 < pages:
-                        intro_page += 1
-                        continue
-                    intro = False
-                    page = 0
-                    sys.stdout.write("\033[2J\033[H")
-                    sys.stdout.flush()
+                if key in (" ", "pagedown") and intro_page + 1 < pages:
+                    intro_page += 1
                     continue
                 if key in ("pageup", "k", "up", "left", "b"):
                     intro_page = max(0, intro_page - 1)
@@ -634,8 +675,12 @@ def interactive(tasks: list[dict], state: dict, state_path: Path, args) -> None:
                     state["cursor"] = task["id"]
                     save_state(state_path, state)
                     break
+                if key not in ("\r", "\n", " ", "pagedown", "esc"):
+                    continue  # ignore rating keys pressed by habit
+                state["intro_seen"] = True
                 intro = False
                 page = 0
+                save_state(state_path, state)
                 sys.stdout.write("\033[2J\033[H")
                 sys.stdout.flush()
                 continue
@@ -647,6 +692,8 @@ def interactive(tasks: list[dict], state: dict, state_path: Path, args) -> None:
             sys.stdout.write("\033[2J\033[H")
             sys.stdout.write("\n".join(content[page * body_rows:(page + 1) * body_rows]))
             sys.stdout.write("\n\n")
+            sys.stdout.write(status_line(entry, width))
+            sys.stdout.write("\n")
             sys.stdout.write(footer(width, page + 1, pages, message))
             sys.stdout.write("\n")
             sys.stdout.flush()
