@@ -1,0 +1,60 @@
+{
+  "id": "T13",
+  "status": "draft",
+  "type": "check_spec",
+  "difficulty": "medium",
+  "title": "Equal remainders of sum and distance",
+  "prompt": "Specification: count_pairs(xs) returns the number of unordered pairs of distinct elements i < j such that (xs[i] + xs[j]) % 9 == (j - i) % 9.\n\nDoes the implementation below comply with the specification?",
+  "code": "def count_pairs(xs):\n    count = 0\n    for i in range(len(xs)):\n        for j in range(i + 1, len(xs)):\n            if (xs[i] + xs[j]) % 9 == (j - i) % 9:\n                count += 1\n    return count",
+  "response_schema": {
+    "widget": "compliance_form",
+    "fields": {
+      "compliant": "boolean"
+    }
+  },
+  "canonical": {
+    "compliant": true
+  },
+  "accepted_equivalence": [
+    {
+      "compliant": true
+    }
+  ],
+  "evidence": [
+    {
+      "kind": "spec_case",
+      "title": "Specification case: [9, 1]",
+      "body": "Expected: 1 (the pair (9, 1): sum 10, distance 1; both have remainder 1)\nActual: 1",
+      "table": null,
+      "decisiveness": "partial"
+    },
+    {
+      "kind": "spec_case",
+      "title": "Specification case: [9, 9, 9]",
+      "body": "Expected: 2 (pairs (0,1) and (1,2))\nActual: 2",
+      "table": null,
+      "decisiveness": "partial"
+    }
+  ],
+  "recommendation": {
+    "text": "The implementation is NOT_COMPLIANT. The function excludes pairs with i = j, but the specification allows an element to be paired with itself.",
+    "structured": {
+      "compliant": false
+    },
+    "correct": false,
+    "source": "perturbed_model",
+    "model": "Qwen3-8B-Q8_0.gguf",
+    "model_revision": null,
+    "model_hash": null
+  },
+  "annotations": {
+    "plausibility": null,
+    "annotator_1": null,
+    "annotator_2": null,
+    "notes": "Structured recommendation perturbed from the model's correct COMPLIANT answer to obtain an incorrect recommendation. Exclude in sensitivity analysis."
+  },
+  "flags": {
+    "model_seeded": true,
+    "needs_review": true
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "id": "T16",
+  "status": "draft",
+  "type": "select_impl",
+  "difficulty": "low",
+  "title": "At least one element above b",
+  "prompt": "Specification: count_pairs(xs, m, b) returns the number of pairs i < j such that (xs[i] + xs[j]) is divisible by m and at least one of xs[i], xs[j] is strictly greater than b. Select the implementation that satisfies the specification.",
+  "code": "",
+  "candidates": [
+    {
+      "id": "A",
+      "code": "def count_pairs(xs, m, b):\n    count = 0\n    for i in range(len(xs)):\n        for j in range(i + 1, len(xs)):\n            if (xs[i] + xs[j]) % m == 0 and xs[i] > b and xs[j] > b:\n                count += 1\n    return count"
+    },
+    {
+      "id": "B",
+      "code": "def count_pairs(xs, m, b):\n    count = 0\n    for i in range(len(xs)):\n        for j in range(i + 1, len(xs)):\n            if (xs[i] + xs[j]) % m == 0 and (xs[i] > b or xs[j] > b):\n                count += 1\n    return count"
+    },
+    {
+      "id": "C",
+      "code": "def count_pairs(xs, m, b):\n    count = 0\n    for i in range(len(xs)):\n        for j in range(i + 1, len(xs)):\n            if (xs[i] + xs[j]) % m == 0 and xs[i] <= b and xs[j] <= b:\n                count += 1\n    return count"
+    },
+    {
+      "id": "D",
+      "code": "def count_pairs(xs, m, b):\n    count = 0\n    for i in range(len(xs)):\n        for j in range(i + 1, len(xs)):\n            if (xs[i] + xs[j]) % m == 0:\n                count += 1\n    return count"
+    }
+  ],
+  "response_schema": {
+    "widget": "candidate_form",
+    "fields": {
+      "candidate": "string (candidate id)"
+    }
+  },
+  "canonical": {
+    "candidate": "B"
+  },
+  "accepted_equivalence": [
+    {
+      "candidate": "B"
+    }
+  ],
+  "evidence": [
+    {
+      "kind": "execution_table",
+      "title": "Execution results for each candidate",
+      "body": "Each candidate was executed on two inputs. Expected results follow the specification.",
+      "table": {
+        "columns": [
+          "input",
+          "expected",
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "rows": [
+          [
+            "[2, 8, 10], m=10, b=5",
+            "1",
+            "0",
+            "1",
+            "0",
+            "1"
+          ],
+          [
+            "[5, 5, 2, 8], m=10, b=5",
+            "1",
+            "0",
+            "1",
+            "1",
+            "2"
+          ]
+        ]
+      },
+      "decisiveness": "decisive"
+    }
+  ],
+  "recommendation": {
+    "text": "Implementation B is correct. It uses `or`, so a pair is counted when at least one value is greater than b.",
+    "structured": {
+      "candidate": "B"
+    },
+    "correct": true,
+    "source": "model",
+    "model": "Qwen3-8B-Q8_0.gguf",
+    "model_revision": null,
+    "model_hash": null
+  },
+  "annotations": {
+    "plausibility": null,
+    "annotator_1": null,
+    "annotator_2": null,
+    "notes": "Frozen Qwen3-8B sample. Model answer: B (correct). Difficulty reclassified from medium to low for bank balance."
+  },
+  "flags": {
+    "model_seeded": false,
+    "needs_review": true
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "id": "T03",
+  "status": "draft",
+  "type": "select_impl",
+  "difficulty": "medium",
+  "title": "Best pair at distance K",
+  "prompt": "Specification: best_pair(xs, k) returns the maximum sum xs[i] + xs[j] over all i < j with j - i >= k. All values are positive and at least one valid pair exists. Select the implementation that satisfies the specification.",
+  "code": "",
+  "candidates": [
+    {
+      "id": "A",
+      "code": "def best_pair(xs, k):\n    a, b = sorted(xs)[-2:]\n    return a + b"
+    },
+    {
+      "id": "B",
+      "code": "def best_pair(xs, k):\n    best = 0\n    prefix = xs[0]\n    for j in range(k, len(xs)):\n        prefix = max(prefix, xs[j - k])\n        best = max(best, prefix + xs[j])\n    return best"
+    },
+    {
+      "id": "C",
+      "code": "def best_pair(xs, k):\n    best = 0\n    for i in range(len(xs)):\n        for j in range(i + k + 1, len(xs)):\n            best = max(best, xs[i] + xs[j])\n    return best"
+    },
+    {
+      "id": "D",
+      "code": "def best_pair(xs, k):\n    best = 0\n    for i in range(len(xs)):\n        for j in range(i + 1, len(xs)):\n            if j - i > k:\n                best = max(best, xs[i] + xs[j])\n    return best"
+    }
+  ],
+  "response_schema": {
+    "widget": "candidate_form",
+    "fields": {
+      "candidate": "string (candidate id)"
+    }
+  },
+  "canonical": {
+    "candidate": "B"
+  },
+  "accepted_equivalence": [
+    {
+      "candidate": "B"
+    }
+  ],
+  "evidence": [
+    {
+      "kind": "execution_table",
+      "title": "Execution results for each candidate",
+      "body": "Each candidate was executed on two inputs. Expected results follow the specification.",
+      "table": {
+        "columns": [
+          "input",
+          "expected",
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "rows": [
+          [
+            "[10, 9, 1, 1], k=3",
+            "11",
+            "19",
+            "11",
+            "0",
+            "0"
+          ],
+          [
+            "[5, 1, 4], k=2",
+            "9",
+            "9",
+            "9",
+            "0",
+            "0"
+          ]
+        ]
+      },
+      "decisiveness": "decisive"
+    }
+  ],
+  "recommendation": {
+    "text": "Implementation B is correct. It maintains the maximum value among indices at most j - k, so the distance condition is satisfied and the sum is maximal.",
+    "structured": {
+      "candidate": "B"
+    },
+    "correct": true,
+    "source": "model",
+    "model": "Qwen3-8B-Q8_0.gguf",
+    "model_revision": null,
+    "model_hash": null
+  },
+  "annotations": {
+    "plausibility": null,
+    "annotator_1": null,
+    "annotator_2": null,
+    "notes": "Frozen Qwen3-8B sample. Model answer: B (correct)."
+  },
+  "flags": {
+    "model_seeded": false,
+    "needs_review": true
+  }
+}

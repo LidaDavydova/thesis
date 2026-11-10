@@ -1,0 +1,32 @@
+Пишу Goal of the Thesis,
+
+Task Domain and Benchmark: 
+* 3 conditions (no, static, addaptive) 
+* по 3 правильных и неправильных 
+* 3 типа задач 
+
+---------------------------
+
+LLM Recommendation Specification:
+model: Qwen3-8B, 8-bit Q8_0
+thinking: disabled
+temperature: 0.7
+top_p: 0.8
+top_k: 20
+max_tokens: 256
+frequency_penalty: 0
+
+and 
+VRAM: Tesla V100 16 GB
+RAM: 128 GB
+
+--------------------------------
+
+Candidate generation:
+LLM recommendation = task-specific structured answer
+
+--------------------------------
+
+Verification Support and Burden Instrumentation:
+тесты делаются мной и проверяются 2 аннотаторами
+

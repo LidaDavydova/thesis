@@ -1,0 +1,53 @@
+{
+  "id": "T11",
+  "status": "draft",
+  "type": "check_spec",
+  "difficulty": "low",
+  "title": "Two largest values at a distance",
+  "prompt": "Specification: best_pair(xs, k) returns the maximum sum xs[i] + xs[j] over all i < j with j - i >= k. All values are positive.\n\nDoes the implementation below comply with the specification?",
+  "code": "def best_pair(xs, k):\n    a, b = sorted(xs)[-2:]\n    return a + b",
+  "response_schema": {
+    "widget": "compliance_form",
+    "fields": {
+      "compliant": "boolean"
+    }
+  },
+  "canonical": {
+    "compliant": false
+  },
+  "accepted_equivalence": [
+    {
+      "compliant": false
+    }
+  ],
+  "evidence": [
+    {
+      "kind": "spec_case",
+      "title": "Specification case: [10, 9, 1, 1], k=3",
+      "body": "Expected: 11 (10 + 1)\nActual: 19 (10 + 9, indices 0 and 1, distance 1)",
+      "table": null,
+      "decisiveness": "decisive"
+    }
+  ],
+  "recommendation": {
+    "text": "The implementation is NOT_COMPLIANT. The function returns the sum of the two largest values and never checks that their indices are at least k apart.",
+    "structured": {
+      "compliant": false
+    },
+    "correct": true,
+    "source": "model",
+    "model": "Qwen3-8B-Q8_0.gguf",
+    "model_revision": null,
+    "model_hash": null
+  },
+  "annotations": {
+    "plausibility": null,
+    "annotator_1": null,
+    "annotator_2": null,
+    "notes": "Frozen Qwen3-8B sample. Model answer: NOT_COMPLIANT (correct)."
+  },
+  "flags": {
+    "model_seeded": false,
+    "needs_review": true
+  }
+}

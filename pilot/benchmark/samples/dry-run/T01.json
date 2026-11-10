@@ -1,0 +1,58 @@
+{
+  "id": "T01",
+  "status": "ready",
+  "type": "identify_bug",
+  "difficulty": "low",
+  "title": "Average of a list",
+  "prompt": "The function below is intended to return the arithmetic mean of a non-empty list of numbers. Does it contain a bug? If yes, give the line number where the bug is located.",
+  "code": "def average(nums):\n    total = 0\n    for i in range(1, len(nums)):\n        total += nums[i]\n    return total / len(nums)",
+  "response_schema": {
+    "widget": "bug_form",
+    "fields": {
+      "has_bug": "boolean",
+      "line": "integer|null (1-based, required when has_bug is true)"
+    }
+  },
+  "canonical": {
+    "has_bug": true,
+    "line": 3
+  },
+  "accepted_equivalence": [
+    {"has_bug": true, "line": 3}
+  ],
+  "evidence": [
+    {
+      "kind": "test",
+      "title": "Test: average([10, 2, 4])",
+      "body": "Expected: 5.333...\nActual: 2.0",
+      "table": null,
+      "decisiveness": "partial"
+    },
+    {
+      "kind": "trace",
+      "title": "Trace of the loop",
+      "body": "i = 1 -> total = 2\ni = 2 -> total = 6\nreturn 6 / 3 = 2.0\n\nIndex 0 (the value 10) is never added.",
+      "table": null,
+      "decisiveness": "partial"
+    }
+  ],
+  "recommendation": {
+    "text": "There is a bug on line 3. range(1, len(nums)) starts at index 1, so the first element of the list is skipped.",
+    "structured": {"has_bug": true, "line": 3},
+    "correct": true,
+    "source": "manual_sample",
+    "model": null,
+    "model_revision": null,
+    "model_hash": null
+  },
+  "annotations": {
+    "plausibility": null,
+    "annotator_1": null,
+    "annotator_2": null,
+    "notes": "Sample task for the November technical dry run; replace with a validated model recommendation before freezing."
+  },
+  "flags": {
+    "model_seeded": false,
+    "needs_review": true
+  }
+}

@@ -1,0 +1,2 @@
+поправить референс Adjust for trust: Adaptive support based on user trust state
+in human-AI decision-making

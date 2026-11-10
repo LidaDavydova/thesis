@@ -1,0 +1,57 @@
+{
+  "id": "T10",
+  "status": "draft",
+  "type": "identify_bug",
+  "difficulty": "high",
+  "title": "Choosing from triples without a multiple of k",
+  "prompt": "The function below is intended to choose exactly one number from each triple, maximize the sum, and ensure that the sum is not divisible by k. It is guaranteed that such a choice exists. Does it contain a bug? If yes, give the line number where the bug is located.",
+  "code": "def solve(triples, k):\n    total = sum(max(t) for t in triples)\n    if total % k != 0:\n        return total\n    loss = min(max(t) - sorted(t)[-2] for t in triples)\n    return total - loss",
+  "response_schema": {
+    "widget": "bug_form",
+    "fields": {
+      "has_bug": "boolean",
+      "line": "integer|null (1-based, required when has_bug is true)"
+    }
+  },
+  "canonical": {
+    "has_bug": true,
+    "line": 5
+  },
+  "accepted_equivalence": [
+    {
+      "has_bug": true,
+      "line": 5
+    }
+  ],
+  "evidence": [
+    {
+      "kind": "test",
+      "title": "Test: solve([(10, 5, 4)], 5)",
+      "body": "Expected: 4 (choose 4)\nActual: 5 (replace 10 by the second-largest value 5, which is still divisible by 5)",
+      "table": null,
+      "decisiveness": "decisive"
+    }
+  ],
+  "recommendation": {
+    "text": "There is a bug on line 5. Only the second-largest value is considered; a third value may be needed to change the remainder modulo k.",
+    "structured": {
+      "has_bug": true,
+      "line": 5
+    },
+    "correct": true,
+    "source": "model",
+    "model": "Qwen3-8B-Q8_0.gguf",
+    "model_revision": null,
+    "model_hash": null
+  },
+  "annotations": {
+    "plausibility": null,
+    "annotator_1": null,
+    "annotator_2": null,
+    "notes": "Frozen Qwen3-8B sample. Model answer: has_bug=true, line=5."
+  },
+  "flags": {
+    "model_seeded": false,
+    "needs_review": true
+  }
+}

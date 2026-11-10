@@ -1,0 +1,60 @@
+{
+  "id": "T02",
+  "status": "draft",
+  "type": "check_spec",
+  "difficulty": "medium",
+  "title": "Pairs divisible by 26, counted by factors",
+  "prompt": "Specification: count_pairs(xs) returns the number of unordered pairs of distinct elements i < j such that xs[i] * xs[j] is divisible by 26.\n\nDoes the implementation below comply with the specification?",
+  "code": "def count_pairs(xs):\n    n26 = sum(1 for x in xs if x % 26 == 0)\n    n2 = sum(1 for x in xs if x % 2 == 0 and x % 26 != 0)\n    n13 = sum(1 for x in xs if x % 13 == 0 and x % 26 != 0)\n    return n26 * (n26 - 1) // 2 + n26 * (len(xs) - n26) + n2 * n13",
+  "response_schema": {
+    "widget": "compliance_form",
+    "fields": {
+      "compliant": "boolean"
+    }
+  },
+  "canonical": {
+    "compliant": true
+  },
+  "accepted_equivalence": [
+    {
+      "compliant": true
+    }
+  ],
+  "evidence": [
+    {
+      "kind": "spec_case",
+      "title": "Specification case: [2, 13, 26]",
+      "body": "Expected: 3\nActual: 3\nPairs: (2, 13), (2, 26), (13, 26).",
+      "table": null,
+      "decisiveness": "partial"
+    },
+    {
+      "kind": "spec_case",
+      "title": "Specification case: [26, 26]",
+      "body": "Expected: 1\nActual: 1",
+      "table": null,
+      "decisiveness": "partial"
+    }
+  ],
+  "recommendation": {
+    "text": "The implementation is NOT_COMPLIANT. A pair of two multiples of 26 is counted twice: once in the C(n26, 2) term and once in the n26 * (n - n26) term.",
+    "structured": {
+      "compliant": false
+    },
+    "correct": false,
+    "source": "model",
+    "model": "Qwen3-8B-Q8_0.gguf",
+    "model_revision": null,
+    "model_hash": null
+  },
+  "annotations": {
+    "plausibility": null,
+    "annotator_1": null,
+    "annotator_2": null,
+    "notes": "Frozen Qwen3-8B sample. Model answer: NOT_COMPLIANT (a false positive: the implementation is correct)."
+  },
+  "flags": {
+    "model_seeded": false,
+    "needs_review": true
+  }
+}

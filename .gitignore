@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# LaTeX build artefacts (keep .tex, .bib, .pdf sources and figures)
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.lof
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+*.xdv
+
+# Generated / participant data (see pilot/data/README.md)
+pilot/data/*.db
+pilot/data/*.sqlite3
+pilot/data/synthetic.csv
+pilot/data/calibration/
+pilot/data/report/
+pilot/data/report-*/
+
+# Annotator state is local until the merge step
+pilot/benchmark/mbpp/annotation_*.json
+
+# Editor and OS noise
+.DS_Store
+*.swp
+*.swo
+*~
+*.tmp

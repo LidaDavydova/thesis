@@ -1,0 +1,74 @@
+{
+  "id": "T03",
+  "status": "ready",
+  "type": "select_impl",
+  "difficulty": "medium",
+  "title": "Count vowels",
+  "prompt": "Specification: count_vowels(s) returns the number of vowels (a, e, i, o, u) in s, case-insensitively. Select the implementation that satisfies the specification.",
+  "code": "",
+  "candidates": [
+    {
+      "id": "A",
+      "code": "def count_vowels(s):\n    return sum(1 for ch in s if ch in \"aeiou\")"
+    },
+    {
+      "id": "B",
+      "code": "def count_vowels(s):\n    return sum(1 for ch in s.lower() if ch in \"aeiou\")"
+    },
+    {
+      "id": "C",
+      "code": "def count_vowels(s):\n    return sum(1 for ch in s if ch in \"aeioAEIO\")"
+    },
+    {
+      "id": "D",
+      "code": "def count_vowels(s):\n    return sum(1 for ch in s if ch in \"aeiouy\")"
+    }
+  ],
+  "response_schema": {
+    "widget": "candidate_form",
+    "fields": {
+      "candidate": "string (candidate id)"
+    }
+  },
+  "canonical": {
+    "candidate": "B"
+  },
+  "accepted_equivalence": [
+    {"candidate": "B"}
+  ],
+  "evidence": [
+    {
+      "kind": "execution_table",
+      "title": "Execution results for each candidate",
+      "body": "Each candidate was executed on three inputs. Expected counts follow the specification.",
+      "table": {
+        "columns": ["input", "expected", "A", "B", "C", "D"],
+        "rows": [
+          ["\"Hello, World!\"", "3", "3", "3", "3", "3"],
+          ["\"AeIoU\"", "5", "0", "5", "4", "5"],
+          ["\"rhythm\"", "0", "0", "0", "0", "1"]
+        ]
+      },
+      "decisiveness": "decisive"
+    }
+  ],
+  "recommendation": {
+    "text": "Implementation B is correct. It lowercases the string before testing membership in \"aeiou\", so uppercase vowels are counted too.",
+    "structured": {"candidate": "B"},
+    "correct": true,
+    "source": "manual_sample",
+    "model": null,
+    "model_revision": null,
+    "model_hash": null
+  },
+  "annotations": {
+    "plausibility": null,
+    "annotator_1": null,
+    "annotator_2": null,
+    "notes": "Sample task; replace with a validated model recommendation before freezing."
+  },
+  "flags": {
+    "model_seeded": false,
+    "needs_review": true
+  }
+}

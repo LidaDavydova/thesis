@@ -1,0 +1,56 @@
+{
+  "id": "T05",
+  "status": "ready",
+  "type": "check_spec",
+  "difficulty": "low",
+  "title": "Safe division",
+  "prompt": "Specification: safe_divide(a, b) returns a / b. When b is zero it returns None and must not raise an exception.\n\nDoes the implementation below comply with the specification?",
+  "code": "def safe_divide(a, b):\n    return a / b",
+  "response_schema": {
+    "widget": "compliance_form",
+    "fields": {
+      "compliant": "boolean"
+    }
+  },
+  "canonical": {
+    "compliant": false
+  },
+  "accepted_equivalence": [
+    {"compliant": false}
+  ],
+  "evidence": [
+    {
+      "kind": "spec_case",
+      "title": "Specification case: division by zero",
+      "body": "Input: safe_divide(6, 0)\nExpected: None\nActual: ZeroDivisionError",
+      "table": null,
+      "decisiveness": "decisive"
+    },
+    {
+      "kind": "spec_case",
+      "title": "Specification case: ordinary division",
+      "body": "Input: safe_divide(6, 2)\nExpected: 3.0\nActual: 3.0",
+      "table": null,
+      "decisiveness": "partial"
+    }
+  ],
+  "recommendation": {
+    "text": "The implementation is COMPLIANT. It returns a / b, which is exactly what the specification asks for.",
+    "structured": {"compliant": true},
+    "correct": false,
+    "source": "manual_sample",
+    "model": null,
+    "model_revision": null,
+    "model_hash": null
+  },
+  "annotations": {
+    "plausibility": null,
+    "annotator_1": null,
+    "annotator_2": null,
+    "notes": "The recommendation ignores the zero-division requirement. Replace before freezing."
+  },
+  "flags": {
+    "model_seeded": false,
+    "needs_review": true
+  }
+}

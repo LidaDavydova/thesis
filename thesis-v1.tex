@@ -1,0 +1,877 @@
+%=====================================================================
+%  BACHELOR THESIS  (version 1: Introduction and Literature Review)
+%
+%  Confidence-Aware Adaptive Verification of LLM Recommendations
+%  in Introductory Programming Tasks
+%
+%  Student:    Lidia Davydova
+%  Supervisor: Paolo Ciancarini
+%
+%  This file is a self-contained first draft. It contains the front
+%  matter, the Introduction (Chapter 1), and the Literature Review
+%  (Chapter 2). Later chapters are placeholders to be filled in.
+%=====================================================================
+
+\documentclass[oneside,final,14pt,a4paper]{extreport}
+
+\usepackage{tempora} % Times New Roman alike font
+
+\usepackage{vmargin}
+\setpapersize{A4}
+\setmarginsrb{2.5cm}{2.2cm}{2.2cm}{2.2cm}{0pt}{10mm}{0pt}{13mm}
+\usepackage{setspace}
+\setstretch{1.5}
+\usepackage{indentfirst}
+\parindent=1.25cm
+
+% Fix the bold monospaced face and use Courier for \texttt.
+\DeclareFontShape{OT1}{cmtt}{bx}{n}{<5><6><7><8><9><10><10.95><12><14.4><17.28><20.74><24.88>cmttb10}{}
+\renewcommand{\ttdefault}{pcr}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{amsthm}
+\usepackage{upgreek}
+\usepackage{bm}
+
+\usepackage{graphicx}
+\graphicspath{{figs/}}
+\usepackage{float}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage[font=singlespacing,labelfont=bf]{caption}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\usepackage{csquotes}
+\usepackage{url}
+\usepackage{xcolor}
+
+\usepackage[backend=biber,style=ieee,autocite=inline]{biblatex}
+\addbibresource{references.bib}
+\DefineBibliographyStrings{english}{%
+  bibliography = {References},}
+
+\usepackage{chngcntr}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=black, citecolor=black, urlcolor=black}
+
+\usepackage{fancyhdr}
+\pagestyle{fancyplain}
+\renewcommand{\chaptermark}[1]{\markboth{\chaptername~\thechapter~--~#1}{}}
+\renewcommand{\sectionmark}[1]{\markright{\thesection\ #1}}
+\rhead[\fancyplain{}{\bf\leftmark}]{\fancyplain{}{\bf\thepage}}
+\lhead[\fancyplain{}{\bf\thepage}]{\fancyplain{}{\bf\rightmark}}
+\cfoot{}
+\setlength{\headheight}{32.0976pt}
+
+\captionsetup[table]{labelfont={normalfont}, name={TABLE}, labelsep={newline}}
+\captionsetup[figure]{labelfont={normalfont}, name={Fig.}, labelsep=period}
+
+
+\begin{document}
+
+%=====================================================================
+%  TITLE PAGE
+%=====================================================================
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{center}
+\vspace*{2cm}
+{\large Innopolis University\par}
+\vspace{2cm}
+{\LARGE\bfseries
+Confidence-Aware Adaptive Verification of LLM Recommendations\\
+in Introductory Programming Tasks\par}
+\vspace{2.5cm}
+{\large Student: Lidia Davydova\par}
+\vspace{0.5cm}
+{\large Supervisor: Paolo Ciancarini\par}
+\vfill
+{\large \today\par}
+\end{center}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+%=====================================================================
+%  ABSTRACT
+%=====================================================================
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+Large language models (LLMs) are increasingly used in programming education,
+but their recommendations can be plausible yet incorrect, so the quality of
+human--AI collaboration depends on \emph{appropriate reliance}: accepting
+correct recommendations and rejecting incorrect ones. Verification support can
+help users evaluate recommendations, and introductory programming is well
+suited to it because correctness can be checked through independent,
+execution-based evidence such as tests, traces, and counterexamples. Providing
+such evidence on every trial, however, introduces unnecessary interaction cost.
+This thesis investigates whether a simple, interpretable adaptive policy---gating
+verification availability on the participant's initial confidence---can reduce
+verification effort relative to always-available verification while preserving
+decision quality. The human--AI interaction is specified through an explicit
+\emph{escalation rule} that fixes who recommends, who supplies independent
+verification evidence, who decides, and what is recorded; the three
+experimental conditions are three escalation policies within that single
+specification. A within-subject
+experiment compares no-verification, static, and adaptive conditions on a
+benchmark of introductory Python tasks with frozen, pre-validated LLM
+recommendations balanced between correct and incorrect. The two primary
+outcomes are final-answer accuracy and verification effort; reliance measures
+are secondary. Reliance on the LLM is distinguished from agreement with an
+answer the participant already held, and adaptive verification is tested for
+non-inferiority in decision quality against static verification, including the
+boundary case of confident but mistaken participants. Expected contributions
+include trial-level evidence on the effort--quality trade-off of
+confidence-gated verification, a validated reproducible benchmark with an
+instrumented prototype, and a complete analysis pipeline.
+
+\newpage
+
+%=====================================================================
+%  CHAPTER 1 --- INTRODUCTION
+%=====================================================================
+\chapter{Introduction}
+\label{chap:intro}
+
+\section{Motivation}
+\label{sec:motivation}
+
+Large language models (LLMs) are increasingly used in programming education and
+software engineering to generate, explain, and debug code and to propose
+answers to programming tasks \cite{Ma2024,Cambaz2024,Denny2024}. They can lower
+the cost of producing a first attempt, suggest alternative implementations, and
+explain unfamiliar concepts. At the same time, such systems can produce
+plausible but incorrect outputs: fluent code that fails to compile, passes some
+tests but not others, or satisfies the letter of a specification while missing
+its intent.
+
+Because of this, the quality of the joint human--AI outcome depends not only on
+the accuracy of the model but on how the human partner responds to it. This is
+captured by the notion of \emph{appropriate reliance} \cite{LeeSee2004}:
+relying on correct recommendations and refraining from relying on incorrect
+ones, judged relative to the answer the user already holds
+\cite{Schemmer2023Appropriate}. Its two failure modes are well documented.
+\emph{Over-reliance} occurs when a user who was initially correct accepts an
+incorrect recommendation; \emph{under-reliance} occurs when a user who was
+initially incorrect rejects a correct one. Both can persist even when additional
+information about the model is made available
+\cite{PoursabziSangdeh2021,Vasconcelos2022,Bo2025}.
+
+Verification support is a natural remedy: rather than asking users to trust or
+distrust the model on the basis of fluency, it lets them check a recommendation
+against independent evidence. Programming tasks suit this approach particularly
+well, because correctness can often be checked independently through execution,
+tests, traces, or counterexamples---evidence grounded in the task itself rather
+than in another LLM-generated justification. This distinction matters, because
+explanations help only when they sufficiently reduce the effort of checking the
+recommendation, and simply providing more information does not automatically
+improve appropriate reliance
+\cite{Bucinca2021,Vasconcelos2022,Bo2025,Schemmer2022}.
+Moreover, feature-based explanations reduce over-reliance mainly for decisions
+that users can already evaluate themselves and lose their benefit as difficulty
+rises
+\cite{Zhang2024Verify}; introductory programming provides exactly such checkable
+grounding.
+
+The remaining difficulty is cost. Verification on every trial introduces
+unnecessary interaction effort: if evidence is displayed when it is not needed,
+it slows users down and consumes attention that could be spent elsewhere. This
+motivates providing support selectively: escalating verification effort when
+the system's confidence in the current answer is low \cite{CascadedLM2025}, or
+when a user-side signal such as trust indicates that support is needed
+\cite{SrinivasanAdjustForTrust}, using only information that is available before
+the correctness of the recommendation is known.
+
+\section{Research Problem}
+\label{sec:problem}
+
+The research problem is how to provide verification support selectively, using
+only information available before the correctness of the LLM recommendation is
+known. This thesis investigates whether a simple adaptive policy, based
+primarily on the user's initial confidence, can provide independent verification
+support at lower effort than always-available verification, and how verification
+effort trades off against decision quality.
+
+The focus is a simple, interpretable policy---not a new LLM, a new verification
+algorithm, or an optimisation method. The contribution is therefore not the
+threshold rule itself; it is the controlled empirical evaluation of whether a
+simple confidence gate can reduce verification exposure while preserving
+appropriate reliance compared with always-available and no-verification
+baselines.
+
+The problem is important because verification cost is paid on every trial, while
+its benefit is concentrated on the trials where the user is uncertain or wrong.
+Introductory programming amplifies both sides: novices are likely to over-rely
+on fluent but incorrect code, yet they are also the users least able to afford
+repeated checking. A policy that spends verification effort only where it is
+needed would make independent evidence practical in ordinary learning settings,
+not only in controlled studies.
+
+\section{Research Gap}
+\label{sec:gap}
+
+Prior work has examined confidence mainly as an outcome to be calibrated, as an
+AI-side uncertainty signal for routing a case to stronger processing
+\cite{CascadedLM2025}, or as a user-side trust signal for adapting explanations
+\cite{SrinivasanAdjustForTrust}. It has also shown that explanations and
+cognitive forcing can reduce over-reliance
+\cite{Bucinca2021,Bo2025,Schemmer2022}. What is not known is whether the
+participant's own initial confidence can serve as a per-trial trigger for
+independent, execution-based verification, and whether such a gate preserves
+decision quality while reducing verification effort. Studies that offer support
+on every trial do not measure the cost of unnecessary verification, while
+studies that manipulate AI-side signals do not test a user-side gate. Direct
+evidence on this effort--quality trade-off is therefore missing, especially for
+novices in introductory programming, where confident errors are common and
+independent evidence is cheap to produce.
+
+The gap matters because a confidence-gated policy would be a lightweight,
+model-agnostic way to reduce interruption cost without weakening decisions. If
+the policy is not non-inferior, the result identifies when confidence should not
+be used as a gate, which is equally important for safe deployment. In
+introductory programming the stakes are concrete: novices are prone to
+over-reliance on plausible but incorrect code, and uncorrected errors can
+entrench misconceptions. The question therefore has to be answered empirically
+before such a policy is recommended in practice.
+
+\section{Conceptual Framework: An Explicit Escalation Rule}
+\label{subsec:protocol}
+
+Coordination, in the account of Ciancarini \cite{Ciancarini2027}, concerns who
+decides, with what evidence, and under whose authority, so that correct and
+incorrect recommendations can be managed by the surrounding system rather than
+by conversation alone. This thesis adopts that element in an explicit
+\emph{escalation rule}: a specification of who supplies evidence, who decides,
+and when the evidence reaches the decider. The rule does not add any
+implementation; it makes the responsibilities already present in the design
+explicit. It has five parts:
+
+\begin{itemize}
+    \item \textbf{Recommender.} A fixed, offline LLM snapshot produces the
+    candidate answer for each task. The recommender has no access to the
+    experimental condition, the verification policy, or the participant.
+    \item \textbf{Evidence provider.} The researchers supply independent,
+    execution-based verification artefacts (tests, traces, counterexamples)
+    derived from the task specification and reference answer, not from the
+    recommender. The evidence provider never states whether the recommendation
+    is correct.
+    \item \textbf{Decider.} The participant holds decision authority: they
+    record an initial answer, a confidence rating, and a final judgment.
+    \item \textbf{Escalation rule.} The rule specifies when the evidence
+    provider's output is escalated to the decider. Decision authority is never
+    reassigned: the participant decides in every condition, and only the flow
+    of evidence is conditional. Under the adaptive policy the escalation
+    condition is $c<\tau$ on the participant's initial confidence; under the
+    static policy evidence is always escalated; under no-verification it never
+    is.
+    \item \textbf{Audit and record.} The instrumented prototype records the
+    task, condition, escalation decision, evidence availability and examination,
+    timestamps, and the correctness label. The correctness label is kept only in
+    the analysis dataset and is never shown to the decider.
+\end{itemize}
+
+The three experimental conditions are therefore \emph{three escalation
+policies within the same specification}: only the escalation rule is changed,
+while the recommender, the evidence provider, the decider, and the audit record
+are held fixed. This keeps the implementation unchanged and makes
+the comparison a comparison of escalation policies rather than of different
+systems.
+
+\section{Research Questions}
+\label{sec:rq}
+
+\textbf{Primary RQ.} Does confidence-aware adaptive verification reduce
+verification effort relative to always-available (static) verification in
+introductory programming tasks, while preserving decision quality relative to
+static verification (non-inferiority) and final-answer accuracy relative to no
+verification?
+
+\textbf{RQ1 (primary).} How do no, static, and adaptive verification affect
+final-answer accuracy?
+
+\textbf{RQ2 (primary).} How does the verification effort of adaptive
+verification (verification availability, evidence-examination rate,
+evidence-examination time) compare with static verification, and is decision
+quality preserved?
+
+\textbf{RQ3 (exploratory).} How do the effort and effectiveness of the adaptive
+policy differ across initial confidence levels, task types, and the
+confident-but-mistaken stratum?
+
+The primary hypotheses follow from the research questions.
+
+\begin{itemize}
+\item \textbf{H1 (quality).} Adaptive verification is non-inferior to static
+verification on final-answer accuracy within the pre-specified margin
+$\delta_Q$.
+\item \textbf{H2 (effort).} Adaptive verification reduces total decision time
+relative to static verification.
+\end{itemize}
+
+Reliance measures are reported as secondary outcomes, distinguishing true
+reliance on the LLM from agreement with an answer the participant already held.
+Neither task type nor task difficulty is an input to the adaptive policy; both
+are analysed only as exploratory moderators of policy effectiveness. A policy
+premise check examines whether initial confidence is associated with initial
+answer correctness, and a non-inferiority test establishes whether adaptive
+verification preserves decision quality relative to static verification.
+
+\section{Approach}
+\label{sec:approach}
+
+The thesis uses a within-subject experiment in which each participant completes
+eighteen introductory Python tasks under three escalation policies: no
+verification, static verification, and confidence-gated adaptive verification.
+Condition order is counterbalanced. Recommendations are produced offline by a
+frozen LLM snapshot and pre-validated so that each condition contains a balanced
+mix of correct and incorrect advice; verification artefacts are derived from the
+task specification and executed independently. The two primary outcomes are
+final-answer accuracy and total decision time, with reliance measures reported
+as secondary outcomes. Trial-level mixed-effects models account for the nesting
+of trials within participants and tasks, and accuracy is assessed by a
+non-inferiority test while effort is assessed by a superiority test. The
+instrumented prototype records evidence availability and examination so that the
+policy can be reproduced and audited.
+
+\section{Contributions and Scope}
+\label{sec:contributions}
+
+The novelty is \emph{not} the observation that confidence relates to reliance on
+AI---miscalibration is well documented \cite{KrugerDunning1999,Bo2025} and taken
+here as a premise---but the combination of elements usually studied in
+isolation: (i)~confidence as a per-trial \emph{trigger} deciding \emph{when}
+support is shown, rather than an outcome to be calibrated or an AI-side
+uncertainty signal; (ii)~\emph{independent, execution-based} evidence (tests,
+traces, counterexamples) rather than additional AI-generated explanations;
+(iii)~a programming setting in which recommendations are pre-validated and
+objective evidence exists; and (iv)~an explicit effort--quality trade-off
+evaluation, treating verification effort as a first-class outcome---in contrast
+to prior work that measures accuracy, reliance, or system cost
+\cite{CascadedLM2025,Zhang2024Verify}.
+
+The thesis is expected to contribute: (1)~trial-level empirical evidence,
+analysed with mixed-effects models, on whether a simple confidence-based policy
+reduces verification effort while preserving decision quality (RQ1--RQ2);
+(2)~an explicit escalation rule that states who recommends, who provides
+evidence, who decides, and what is recorded, and that treats the three
+conditions as three escalation policies within one specification
+\cite{Ciancarini2027}; (3)~a validated benchmark of introductory Python tasks
+with fixed, pre-validated LLM recommendations (balanced correct/incorrect),
+task-type and difficulty labels, and verification data; (4)~a reproducible
+prototype of the three conditions with complete logging, including evidence
+examination; and (5)~an analysis pipeline for the primary outcome and effort
+measures.
+
+The contribution is deliberately not a new LLM, a new algorithm, or a tutoring
+system: the confidence gate is intentionally simple, and its value lies in the
+controlled empirical comparison against always-available and no-verification
+baselines in a reproducible human--AI interaction experiment.
+
+Taken together, these contributions show how a minimal user-side signal can
+govern when independent evidence is worth its cost. If the policy is supported,
+it offers programming environments a model-agnostic way to reduce interruption
+without weakening decisions; if it is not, the boundary conditions delimit when
+confidence gating is unsafe. Either outcome informs the design of verification
+support for novice programmers.
+
+\section{Structure of the Thesis}
+\label{sec:structure}
+
+The remainder of the thesis is organised as follows.
+Chapter~2 reviews the literature on trust and appropriate reliance,
+explanation-based, cognitive-forcing, and selective interventions, verification
+and its cost, confidence as a signal for adaptive support, the coordination and
+governance of LLM-based systems, and LLM assistance in programming education, and
+derives the research gap addressed here.
+Chapter~3 presents the methodology: the benchmark and task domain, the
+recommendation specification, the verification artefacts, the three escalation
+policies, and the outcome measures.
+Chapter~4 describes the implementation of the instrumented prototype and its
+logging.
+Chapter~5 reports the evaluation, the statistical analysis, the discussion of
+results, threats to validity, and implications.
+Chapter~6 concludes and outlines future work.
+
+
+%=====================================================================
+%  CHAPTER 2 --- LITERATURE REVIEW
+%=====================================================================
+\chapter{Literature Review}
+\label{chap:lr}
+
+\section{Introduction and Review Scope}
+\label{sec:lit-intro}
+
+Research on human--AI decision-making spans human factors, explainable AI,
+human--computer interaction, and computing education. Reviewing these
+literatures separately would obscure the tension motivating this thesis: an
+intervention that improves trust in one setting can degrade the joint decision
+in another, so the relevant question is not whether users trust a system but
+whether they rely on it appropriately. The review is organised around four
+strands---trust and appropriate reliance; explanation-based, cognitive-forcing,
+and adaptive interventions; verification, confidence, and coordination; and
+LLM assistance in programming education---and for each it classifies the
+approaches, evaluates the evidence, and states the implications for this
+study. Sources came from targeted, iterative searches of the major computing
+and HCI databases, prioritising peer-reviewed work from 2019--2027 and
+including older foundational work where it defines a construct used here
+\cite{LeeSee2004,KrugerDunning1999}. The review is argument-driven rather than
+systematic, and its final set is restricted to studies that report an
+empirical human--AI interaction result, define a construct, metric, or design
+framework used in the thesis, or describe a comparable educational setting.
+
+\section{Trust, Reliance, and Calibration}
+\label{sec:lit-trust}
+
+Trust in automation is classically defined as the attitude that an agent will
+help an individual achieve a goal under uncertainty and vulnerability
+\cite{LeeSee2004}. Lee and See's contribution is not only the definition but
+the design goal that follows from it: the objective is not maximal trust but
+\emph{appropriate} reliance, calibrated to the actual capability of the
+automated agent. Appropriate reliance concerns the extent to which a decision
+maker relies on correct advice and refrains from relying on incorrect advice
+\cite{Schemmer2023Appropriate}. Its two failure modes are defined relative to
+the initial answer. \emph{Over-reliance} occurs when a decision maker who was
+initially correct follows incorrect advice; \emph{under-reliance} occurs when a
+decision maker who was initially incorrect rejects correct advice
+\cite{Schemmer2023Appropriate,Bo2025}. This conditioning is essential: without
+it, accepting wrong advice and rejecting correct advice cannot be distinguished
+from cases in which the initial answer was already wrong or already correct.
+
+The distinction matters because interventions that reduce over-reliance may 
+inadvertently increase under-reliance, potentially without improving overall 
+reliance appropriateness \cite{Bo2025}. The construct is not merely terminological: how it is
+operationalized determines which errors a study can detect. Schemmer et al.
+observe that appropriate reliance still lacks a common definition and an
+operational measurement concept; their two-dimensional formulation, adopted
+here, separates reliance on correct advice from reliance on incorrect advice
+and reinforces the need to state explicitly which errors a policy is meant to
+reduce.
+
+Empirical work in AI-assisted decision-making has shown that users frequently fail
+to calibrate reliance to recommendation quality. In a sequence of pre-registered
+experiments with functionally identical models that varied only in apparent
+interpretability, participants did not follow predictions more closely when the
+model seemed clearer, and in some conditions were \emph{less} able to detect
+the model's mistakes, apparently because of information overload
+\cite{PoursabziSangdeh2021}. Chen et al. \cite{Chen2023} traced this result to
+the interaction between explanations and users' own intuition about the
+outcome. Feature-based explanations were visually dominant: participants
+scanned highlighted spans rather than reading, more often reported weak
+intuition about the outcome, and deferred to the AI when they could not reason
+about the highlighted features, so decision outcomes did not improve and
+over-reliance increased. Example-based explanations left the instance and the
+user's prior judgment in the foreground, so strong intuition could be used to
+override the AI and the explanation could be ignored, supporting complementary
+performance.
+Bo et al. \cite{Bo2025} benchmarked three interventions with LLM advice in a
+randomised experiment with 400 participants: a static reliance disclaimer
+appended to the advice, token-level uncertainty highlighting, and an implicit
+answer that withheld the recommendation and required participants to derive it.
+All three reduced over-reliance, but only the disclaimer significantly improved
+appropriate reliance, and only on the LSAT task; in numerical estimation no
+intervention did, and participants became more confident after incorrect
+reliance decisions in some contexts. These studies establish that over- and
+under-reliance are persistent, not incidental, and that adding information
+does not by itself produce calibration.
+
+A second body of work concerns the relation between confidence and
+correctness. Kruger and Dunning \cite{KrugerDunning1999} reported that less
+competent individuals tend to overestimate their own performance relative to
+more competent peers, a pattern usually described as a metacognitive deficit.
+The finding is often invoked as evidence that self-assessment is unreliable,
+but the underlying phenomenon is broader and more differentiated: Moore and
+Healy \cite{MooreHealy2008} distinguish overestimation of one's absolute
+performance, overplacement relative to others, and overprecision in the
+certainty of one's beliefs, and show that these components do not always move
+together. For the present thesis, the relevant implication is narrower than
+the popular Dunning--Kruger narrative: confidence is informative about
+correctness on average, but it is not a direct readout of correctness, and its
+diagnostic value must be checked empirically in the task domain rather than
+assumed.
+
+These strands jointly define the outcome vocabulary used in this thesis. At
+the trial level, \emph{appropriate reliance} occurs when the participant was
+initially incorrect, received correct advice, and adopted it, or was initially
+correct, received incorrect advice, and rejected it. \emph{Over-reliance} is
+the proportion of trials on which the participant was initially correct,
+received incorrect advice, and adopted it; \emph{under-reliance} is the
+proportion of trials on which the participant was initially incorrect, received
+correct advice, and rejected it. Conditioning on the initial answer also
+separates reliance from mere agreement: when the participant already holds the
+recommended answer, agreement with the LLM is not evidence of reliance on it.
+This is why the thesis distinguishes \emph{agreement} ($F_i=L_i$, the final
+answer matches the recommendation) from \emph{LLM influence} ($A_i\neq L_i$ and
+$F_i=L_i$, the participant moved toward the recommendation from a different
+prior answer) and treats stable prior agreement as a separate case. The
+distinction is developed further in the chapter's discussion of evaluation
+metrics.
+
+\section{Interventions That Support Reliance}
+\label{sec:lit-explanations}
+
+Research on supporting reliance can be classified by the mechanism it targets:
+the information shown to the user, the interaction that forces deliberation,
+the expectations with which the user enters the task, or the policy that decides
+when support is provided. These families are not mutually exclusive, but the
+distinction is useful because they rest on different assumptions about why
+reliance fails and impose different costs on the user.
+
+\subsection{Explanations and Explainable AI}
+\label{sec:lit-xai}
+
+Explanations are the most extensively studied intervention. The rationale is
+that revealing why a model produced a recommendation should help users detect
+errors and calibrate their trust. The empirical record is more conditional. A
+meta-analysis of nine articles covering 44 studies and a range of explanation
+types---feature importance, example-based explanations, and confidence
+scores---found that XAI-assisted decisions outperformed unaided human decisions
+by 0.59 standard deviations (95\% CI 0.39--0.79). In the narrower subset of
+studies that compared explanations with an AI recommendation alone, however,
+the difference was only 0.07 (95\% CI $-0.15$--$0.30$): the pooled estimate
+concealed substantial heterogeneity, with a prediction interval ranging from
+$-0.59$ to $0.74$, so explanations helped in some settings and hurt in others
+\cite{Schemmer2022}. The gain over unaided humans was concentrated
+in text tasks (0.72) and absent for tabular ones (0.01). A qualitative reading
+of the same studies concluded that explanations mainly raised acceptance of AI
+advice, with only one article reporting evidence of appropriate reliance. This
+distinction matters: explanations may make an AI system more acceptable without
+making its advice easier to evaluate.
+
+Vasconcelos et al. \cite{Vasconcelos2022} offer a cost--benefit account that
+reconciles some of the mixed results. Across five studies with 731
+participants, they manipulated task difficulty, explanation difficulty, and
+monetary incentives, and found that explanations reduce over-reliance when they
+sufficiently lower the cost of verifying the prediction. When checking an
+explanation is as costly as solving the task, users rationally fall back on the
+recommendation. The benefit of an explanation therefore lies in the verification
+effort it saves, not in its presence.
+
+Explanation format also matters. Chen et al. \cite{Chen2023} compared
+feature-based and example-based explanations in a think-aloud study and found
+that feature-based explanations increased over-reliance, whereas example-based
+explanations supported complementary human--AI performance. Their account
+centres on whether an explanation displaces or scaffolds the user's existing
+intuition about the outcome: feature-based displays disrupted it, whereas
+example-based displays preserved it and supplied independent signals of AI
+unreliability. Zhang et al. \cite{Zhang2024Verify} sharpened this point by
+manipulating decision difficulty directly. Feature-based explanations reduced
+over-reliance for easy decisions but not for hard ones, and for the hardest
+decisions they could increase it.
+Their title states the underlying constraint: users can only verify when they
+already know the answer. Bansal et al. \cite{Bansal2021} reached a compatible
+conclusion from the perspective of team performance: explanations increased the
+chance that participants accepted the AI's recommendation regardless of whether
+it was correct, and did not increase complementary team performance. Wang et
+al. \cite{Wang2019} make the broader design argument: an explanation should be
+chosen for the reasoning goal it serves and the cognitive bias it is meant to
+counter, rather than from a fixed list of explanation types or from whatever
+XAI technique happens to be available.
+
+Taken together, these studies show that explanations are neither necessary nor
+sufficient for appropriate reliance. They can help when they reduce the cost of
+checking a claim the user is able to check, and they can hurt when they persuade
+through fluency rather than evidence. This is one reason the present thesis
+separates explanation from verification: an explanation is generated by or
+about the model, whereas verification evidence is obtained from the task
+itself, independently of the model.
+
+\subsection{Cognitive Forcing and Expectation Setting}
+\label{sec:lit-forcing}
+
+A second family changes the interaction rather than the content. Cognitive
+forcing functions change when and how a recommendation becomes available, so
+that accepting it requires an act of engagement rather than a passive read. The
+three designs tested by Bu\c{c}inca et al. \cite{Bucinca2021} illustrate the
+range: participants had to request the AI's suggestion explicitly, to commit to
+an initial answer before seeing it and then revise, or to wait 30 seconds while
+the system appeared to process the image. Compared with simple explainable-AI
+interfaces and a no-AI baseline in an experiment with 199 participants, these
+interventions significantly reduced over-reliance but did not eliminate it, and
+the designs that reduced over-reliance most received the least favourable
+subjective ratings. The benefit was also unevenly distributed: participants higher in Need
+for Cognition benefited more, which the authors report as an
+intervention-generated inequality. Cognitive forcing therefore trades
+effectiveness against acceptability and may widen differences between users.
+
+Expectation setting acts earlier, before the interaction begins. Kocielnik et
+al. \cite{Kocielnik2019} studied a scheduling assistant whose AI component had
+the same 50\% accuracy in two conditions that differed only in whether the
+design emphasised avoiding false positives or false negatives. These framings
+produced markedly different subjective perceptions of accuracy and acceptance,
+and explicit expectation-adjustment techniques increased acceptance of the
+imperfect system. This work is relevant because it shows that users' evaluation
+of an imperfect system is shaped by framing and prior expectations, not only by
+its accuracy. Its outcome, however, is acceptance rather than decision accuracy:
+baseline and expectation-setting conditions did not differ significantly in
+objective task accuracy (0.91 vs.\ 0.88), so preparing users for imperfection
+can make a system more acceptable without making their decisions better.
+
+Both approaches change behaviour, but neither supplies task-grounded evidence
+that the user can inspect. Cognitive forcing can interrupt automatic acceptance,
+and expectation setting can calibrate the user's prior, yet both leave the
+burden of verification on the user and can reduce reliance overall rather than
+direct it toward correct recommendations.
+
+\subsection{Adaptive and Selective Interventions}
+\label{sec:lit-adaptive}
+
+A third family makes support conditional. The condition may be a property of
+the model, of the task, or of the user. Fanconi and van der Schaar
+\cite{CascadedLM2025} propose a cascaded LLM framework in which a base model
+answers first, a deferral policy sends uncertain cases to a larger model, and an
+abstention policy sends remaining uncertain cases to a human expert; the
+thresholds are updated online from human feedback. The framework balances
+accuracy, computational cost, and human effort, and it is evaluated on
+question-answering benchmarks rather than in a controlled human-subject study.
+Its deferral signal is the model's calibrated confidence, while abstention to
+the human is triggered by posterior uncertainty; and the human receives a case
+to decide, not a body of evidence to evaluate.
+
+The work closest to this thesis on the user side is that of Srinivasan and
+Thomason \cite{SrinivasanAdjustForTrust}. They argue that extreme trust produces
+under-reliance when trust is low and over-reliance when it is high, and adapt
+the assistant's behaviour accordingly: supporting explanations are shown when
+trust is low, counter-explanations when trust is high, and forced pauses are
+inserted to promote deliberation. In two decision-making scenarios, including
+medical diagnosis, supporting and counter-explanations reduced inappropriate
+reliance by up to 38\% and improved decision accuracy by up to 20\%; forced
+pauses separately reduced over-reliance by promoting deliberation. The signal
+is the user's trust state, and the gated support is still AI-generated
+explanation or interaction pacing, not independent verification of the
+recommendation.
+
+The intervention studies reviewed above are mostly static: the same support is
+provided on every trial. Bo et al. \cite{Bo2025} evaluate three such
+interventions with LLM advice and find that they reduce over-reliance but
+generally fail to improve appropriate reliance, because they reduce reliance
+overall rather than redirect it. The authors discuss confidence calibration as
+a design implication but do not use confidence as a control signal. This
+motivates the present work, which combines a user-side, per-trial confidence
+signal with independent execution-based evidence.
+
+\subsection{Comparative Evaluation}
+\label{sec:lit-comparison}
+
+Table~\ref{tab:positioning} compares the closest lines of work along four
+dimensions: the signal that drives support, what is gated, what the user sees,
+and the primary outcome. The comparison makes the gap concrete. Model-side
+gating uses confidence to decide whether to escalate to a more capable model or
+to a human \cite{CascadedLM2025}; trust-adaptive gating uses a user state to
+choose an explanation or a pause \cite{SrinivasanAdjustForTrust}; the
+intervention studies apply their support uniformly \cite{Bo2025}; and Zhang et
+al.\ vary decision difficulty but do not gate on it, finding that feature
+explanations reduce over-reliance only for easy decisions
+\cite{Zhang2024Verify}. Within the scope of the search described in
+Section~\ref{sec:lit-intro}, no study has been found that gates \emph{independent,
+execution-based} evidence on the decider's own prior confidence, and none has
+treated interaction effort as a primary outcome alongside decision quality.
+
+\begin{table}[t]
+\centering
+\caption{Positioning relative to the closest lines of work.}
+\label{tab:positioning}
+\footnotesize
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{2.4cm}>{\raggedright\arraybackslash}p{2.0cm}>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}p{3.2cm}>{\raggedright\arraybackslash}p{2.6cm}@{}}
+\toprule
+Work & Signal & What is gated & What the user sees & Primary outcome \\
+\midrule
+Bo et al. \cite{Bo2025} & None (fixed) & Nothing (uniform) & Disclaimer, uncertainty highlighting, or implicit answer & Appropriate reliance \\
+Srinivasan and Thomason \cite{SrinivasanAdjustForTrust} & User trust state & Explanation type; forced pause & Supporting or counter-explanations & Inappropriate reliance \\
+Zhang et al. \cite{Zhang2024Verify} & None (difficulty as moderator) & Nothing (explanation vs.\ no explanation) & Feature attributions & Over-reliance \\
+Fanconi and van der Schaar \cite{CascadedLM2025} & Calibrated confidence; posterior uncertainty & Large-model escalation; human review & Case only (no evidence) & Cost and accuracy \\
+This thesis & Prior-answer confidence & Independent execution evidence & Tests, traces, counterexamples & Accuracy and effort \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The comparison also exposes a methodological difference. The studies above
+measure decision quality, reliance, or computational cost; CascadedLM measures
+human involvement as a cost to be minimised, but not the interaction effort of
+the person who receives the case. The present thesis treats verification effort
+as a first-class outcome because a policy that preserves accuracy by making
+everyone examine evidence on every trial has not solved the problem it set out
+to solve.
+
+\section{Independent Verification and Its Cost}
+\label{sec:lit-verification}
+
+\emph{Verification} here means checking a claim against evidence that is
+independent of the source that produced it. In programming, the evidence can be
+a test suite, an execution trace, or a counterexample derived from the task
+specification and the reference answer. This differs from an explanation in
+kind, not only in presentation. An explanation is an account of why the model
+produced an answer; verification evidence is a check on whether the answer
+satisfies the task. The distinction is important because a fluent explanation
+can increase acceptance without increasing correctness \cite{Bansal2021}, and
+because an explanation of a model's reasoning need not faithfully describe the
+computation that produced the answer.
+
+Verification is not free. Human scrutiny of AI outputs consumes time and
+attention, and the cost is incurred on every trial on which evidence is shown.
+Vasconcelos et al. \cite{Vasconcelos2022} formalise this as a cost--benefit
+choice: users weigh the cognitive effort of verifying the AI against the
+lower-effort strategy of relying on it, and engage with an explanation when the
+reduction in verification cost justifies the effort. CascadedLM
+\cite{CascadedLM2025} applies a related cost logic at the system level, routing a
+case to human review only after a larger model still returns a high-uncertainty
+answer. Zhang et al. \cite{Zhang2024Verify} add a constraint that matters for
+novices in particular: verification presupposes an independent reference against
+which the answer can be judged. Feature-based explanations reduced overreliance
+only on decisions participants could already evaluate themselves, and not on
+difficult ones. Evidence that cannot be checked within the decision-time budget
+is not effective support, however objective it is.
+
+Introductory programming is a favourable setting for independent verification.
+Tasks come with executable test suites, so correctness can be checked by
+running tests rather than by judging surface similarity; code-generation
+benchmarks adopt functional correctness for exactly this reason
+\cite{Liu2023EvalPlus}. The tasks are small enough that a trace or a failing test
+can plausibly be interpreted within the decision-time budget, and the evidence
+can be derived from the task specification rather than from the recommender. The
+evidence is still not exhaustive: a program can pass a finite test suite and
+remain incorrect, and a trace shows what happened on one input rather than on
+all inputs. Execution-based
+evidence therefore supports judgment rather than replacing it, which is
+consistent with leaving decision authority with the participant.
+
+The design problem is consequently not how to construct verification evidence
+but \emph{when} to present it. Showing evidence on every trial pays the cost
+even when the recommendation is already accepted correctly; withholding it
+entirely leaves the participant with fluency as the only cue. The next section
+considers whether the participant's own confidence can serve as the signal that
+decides when the cost is worth paying.
+
+\section{Confidence as a Signal for Adaptive Support}
+\label{sec:lit-confidence}
+
+Lee and See \cite[70]{LeeSee2004} observe that static approaches used to
+identify miscalibration of self-confidence in decision making ``address only
+cumulative experience, rather than the evolving experience and continuous
+recalibration that are critical for appropriate reliance on automation.'' The
+implication drawn here is that calibration should not be treated as a stable
+property to be estimated once and then applied as a fixed weight; what matters is
+the relation between confidence and correctness as it evolves across tasks,
+trials, and moments of an interaction.
+
+This distinction matters for adaptive verification. A single calibration score,
+or a disposition measured before the task, cannot distinguish a trial on which a
+student is correctly confident from one on which the same student is confidently
+wrong. A per-trial confidence signal can, in principle, make that distinction at
+the point where support is being considered. Throughout this thesis, confidence
+refers to the participant's metacognitive judgement about the correctness of
+their own prior answer, elicited before the recommendation is shown; it is
+distinct both from trust in the assistant \cite{LeeSee2004} and from the model's
+own uncertainty. The thesis therefore adopts the weaker, testable implication of
+Lee and See's argument: confidence is elicited on every trial and used as a
+routing signal, while its relationship to initial-answer correctness is checked
+empirically rather than assumed. The stronger claim---that the decision
+threshold itself should be continuously recalibrated---is outside the scope of
+the present design.
+
+Empirically, the premise is plausible but not guaranteed. Bo et al.
+\cite{Bo2025} found that interventions reduced over-reliance but generally
+failed to improve appropriate reliance, and that confidence after incorrect
+reliance decisions was poorly calibrated in some contexts. The authors discuss
+confidence calibration as a design implication but do not use confidence as a
+control signal. Related work adapts support to the user's trust state
+\cite{SrinivasanAdjustForTrust}, adjusting the interaction to the user's
+evolving disposition toward the system.
+
+In operational terms, confidence is an \emph{input signal}---a lightweight
+trigger deciding \emph{when} independent support is shown---rather than a fully
+calibrated internal state. This is a deliberately modest operationalisation of
+the dynamic view: confidence is measured repeatedly and used at the trial level,
+but the threshold is fixed rather than learned online. The documented
+relationship between confidence and correctness is treated as a premise: if
+confidence carries information about correctness, it can also inform \emph{when}
+verification is worth its interaction cost. The interaction-cost dimension is
+largely absent from calibration-oriented work and is a primary outcome here.
+
+\section{Coordination and Governance of LLM-Based Systems}
+\label{sec:lit-coordination}
+
+Because a language model can produce a fluent answer without guaranteeing that
+it is correct, in scope, or compatible with other decisions, plausible but
+unsupported output must be managed by the surrounding system rather than trusted
+on fluency alone \cite{Ciancarini2027}. Recent work on agentic software
+engineering argues that increasing autonomy raises, rather than lowers, the need
+for coordination: claims may need to be checked against artefacts, actions
+against permissions, and decisions against explicitly assigned authority, and
+shared artefacts, logs, tests, and approval points make decisions traceable
+\cite{Ciancarini2027}.
+
+This perspective motivates the explicit escalation rule adopted in this thesis
+(Section~\ref{subsec:protocol}): coordination concerns who decides, with what
+evidence, and under whose authority, and here that allocation is made explicit
+in independent, execution-based evidence that replaces reliance on
+conversational output alone.
+It also clarifies why verification is not merely a UX feature: it is the
+mechanism by which the system, rather than the fluency of the model, governs
+when a recommendation is trusted.
+
+\section{LLMs in Programming Education}
+\label{sec:lit-programming}
+
+LLMs are increasingly used for code generation, debugging, and explanation in
+computing education \cite{Ma2024,Cambaz2024,Denny2024}. They can accelerate
+routine work and provide on-demand feedback, but they can also be plausible yet
+incorrect, so learners must evaluate recommendations critically. Prior work
+establishes that intuition, explanation design, and decision difficulty shape
+reliance \cite{Chen2023,Vasconcelos2022,Zhang2024Verify}. In educational
+settings, the stakes of miscalibration are high: accepting an incorrect
+recommendation can entrench a misconception, while rejecting a correct one
+wastes an opportunity to learn.
+
+\section{Synthesis and Research Gap}
+\label{sec:lit-gap}
+
+The reviewed literature converges on three points. First, appropriate
+reliance---not trust maximisation---is the correct objective, and over- and
+under-reliance are persistent failure modes \cite{LeeSee2004,PoursabziSangdeh2021,
+Bo2025}. Second, explanations and cognitive forcing help only conditionally,
+and information alone does not guarantee better monitoring
+\cite{Bucinca2021,Schemmer2022,Vasconcelos2022}. Third, human scrutiny is costly
+and should be invoked selectively \cite{CascadedLM2025}, and explanation-based
+support helps mainly on decisions users can already evaluate themselves
+\cite{Zhang2024Verify}.
+
+What remains unknown is whether a learner's \emph{initial confidence} can serve
+as a lightweight trigger for selectively displaying \emph{independent
+verification evidence} after an LLM recommendation in introductory programming
+tasks---reducing verification effort relative to always-available support while
+preserving final-answer accuracy and appropriate reliance. This is the gap the
+thesis addresses.
+
+Since LLM-based assistants have entered programming education, the cost of
+human scrutiny has become a primary design constraint, and the reviewed
+literature points to a controlled comparison of escalation policies rather
+than to a new model or algorithm. Accordingly, the policy is tested in a
+within-subject experiment in which all participants experience all three
+escalation policies, so that trial-level comparisons are not confounded by
+individual differences. Trial-level outcomes are analysed with mixed-effects
+models because trials are nested within participants and tasks. Decision
+quality is assessed with a non-inferiority test rather than a superiority
+test, because the cost literature reviewed here indicates that the goal is to
+preserve quality while reducing verification effort. Recommendations are
+frozen and pre-validated so that the verification policy, not model behaviour,
+is the manipulated factor. Concretely, the design treats confidence as an
+escalation signal within a single explicit escalation rule, measures
+verification effort as a first-class outcome, and evaluates decision quality
+against explicit non-inferiority criteria, including the boundary case of
+participants who are confident but mistaken.
+
+
+%=====================================================================
+%% REFERENCES
+\printbibliography[heading=bibintoc,title={References}]
+
+\end{document}
